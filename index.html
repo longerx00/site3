@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSE Schedule Bot - Умный Telegram бот расписания</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #10b981;
+            --accent: #f59e0b;
+            --dark: #1f2937;
+            --darker: #111827;
+            --light: #f8fafc;
+            --gray: #6b7280;
+            --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.7;
+            color: var(--dark);
+            background: var(--light);
+            overflow-x: hidden;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--darker);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Navigation */
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            padding: 1rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .navbar.scrolled {
+            padding: 0.5rem 0;
+            box-shadow: var(--shadow);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--dark);
+            font-weight: 500;
+            transition: color 0.3s ease;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--dark);
+            cursor: pointer;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            background: var(--gradient);
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><polygon fill="rgba(255,255,255,0.05)" points="0,1000 1000,0 1000,1000"/></svg>');
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            line-height: 1.1;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            margin-bottom: 2.5rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: white;
+            color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-3px);
+        }
+
+        /* Tabs Section */
+        .tabs-section {
+            padding: 5rem 0;
+            background: var(--light);
+        }
+
+        .tabs-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .tabs-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .tabs-header h2 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tabs-navigation {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 1rem 2rem;
+            background: white;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .tab-btn:hover:not(.active) {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Content Styles */
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .content-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        .content-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .content-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .tech-item {
+            background: var(--gradient);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Authors Section */
+        .authors-section {
+            padding: 5rem 0;
+            background: var(--darker);
+            color: white;
+        }
+
+        .authors-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            text-align: center;
+        }
+
+        .authors-container h2 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 3rem;
+        }
+
+        .authors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 3rem;
+            margin-top: 2rem;
+        }
+
+        .author-card {
+            background: rgba(255,255,255,0.05);
+            padding: 2.5rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s ease;
+            text-align: center;
+        }
+
+        .author-card:hover {
+            transform: translateY(-10px);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .author-photo {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 1.5rem;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 4px solid var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .author-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .author-info h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: white;
+        }
+
+        .author-position {
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+        }
+
+        .author-bio {
+            color: var(--gray);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .author-contacts {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.8rem 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            transition: background 0.3s ease;
+        }
+
+        .contact-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .contact-icon {
+            font-size: 1.2rem;
+            width: 30px;
+            text-align: center;
+        }
+
+        .contact-item a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .contact-item a:hover {
+            color: var(--primary);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 5rem 0;
+            background: var(--darker);
+            color: white;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .feature-card {
+            background: rgba(255,255,255,0.05);
+            padding: 2rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--darker);
+            color: white;
+            padding: 3rem 0 1rem;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 3rem;
+        }
+
+        .footer-section h3 {
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-links a {
+            color: var(--gray);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        .social-links {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .social-links a {
+            color: white;
+            font-size: 1.5rem;
+            transition: color 0.3s ease;
+        }
+
+        .social-links a:hover {
+            color: var(--primary);
+        }
+
+        .footer-bottom {
+            text-align: center;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            color: var(--gray);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .nav-links {
+                position: fixed;
+                top: 70px;
+                left: -100%;
+                width: 100%;
+                height: calc(100vh - 70px);
+                background: white;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+                padding-top: 2rem;
+                transition: left 0.3s ease;
+                box-shadow: var(--shadow);
+            }
+
+            .nav-links.active {
+                left: 0;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .tabs-navigation {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .tab-btn {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+
+            .authors-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .author-card {
+                padding: 2rem;
+            }
+        }
+
+        /* Animations */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loader"></div>
+        <p style="color: white;">Загрузка HseSchedule Bot...</p>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <i class="fas fa-robot"></i>
+                HseSchedule Bot
+            </a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="#home">Главная</a></li>
+                <li><a href="#features">Функции</a></li>
+                <li><a href="#about">О проекте</a></li>
+                <li><a href="#authors">Авторы</a></li>
+                <li><a href="#tech">Технологии</a></li>
+                <li><a href="#contact">Контакты</a></li>
+            </ul>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="hero-content">
+            <h1 class="fade-in">Умное расписание в вашем Telegram</h1>
+            <p class="fade-in">HSE Schedule Bot - это революционный подход к доступу к учебному расписанию. Быстро, удобно, всегда под рукой.</p>
+            <div class="hero-buttons">
+                <a href="https://t.me/KNTschedule_bot" class="btn btn-primary fade-in" target="_blank">
+                    <i class="fab fa-telegram"></i>
+                    Запустить бота
+                </a>
+                <a href="#features" class="btn btn-secondary fade-in">
+                    <i class="fas fa-star"></i>
+                    Узнать больше
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tabs Section -->
+    <section class="tabs-section" id="features">
+        <div class="tabs-container">
+            <div class="tabs-header">
+                <h2>Все о HSE Bot</h2>
+                <p>Исследуйте все возможности нашего умного бота</p>
+            </div>
+
+            <div class="tabs-navigation">
+                <button class="tab-btn active" onclick="openTab('overview')">
+                    <i class="fas fa-eye"></i>
+                    Обзор
+                </button>
+                <button class="tab-btn" onclick="openTab('functions')">
+                    <i class="fas fa-cogs"></i>
+                    Функции
+                </button>
+                <button class="tab-btn" onclick="openTab('creation')">
+                    <i class="fas fa-code"></i>
+                    Разработка
+                </button>
+                <button class="tab-btn" onclick="openTab('architecture')">
+                    <i class="fas fa-sitemap"></i>
+                    Архитектура
+                </button>
+                <button class="tab-btn" onclick="openTab('future')">
+                    <i class="fas fa-rocket"></i>
+                    Планы
+                </button>
+            </div>
+
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <div class="content-grid">
+                    <div class="content-card fade-in">
+                        <h3><i class="fas fa-bullseye"></i> Цели проекта</h3>
+                        <p>Создать централизованную систему для мгновенного доступа к актуальному расписанию, сократив время поиска информации с 5-10 минут до 10 секунд.</p>
+                        <ul>
+                            <li>Охватить 90% студентов направления</li>
+                            <li>Снизить количество опозданий на 40%</li>
+                            <li>Автоматизировать процесс уведомлений</li>
+                        </ul>
+                    </div>
+                    <div class="content-card fade-in">
+                        <h3><i class="fas fa-chart-line"></i> Результаты</h3>
+                        <p>За 3 месяца активного использования бот показал впечатляющие результаты:</p>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-number">10+</div>
+                                <div>активных пользователей</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">97.8%</div>
+                                <div>удовлетворенности</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">1.5с</div>
+                                <div>среднее время ответа</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Functions Tab -->
+            <div id="functions" class="tab-content">
+                <div class="content-grid">
+                    <div class="content-card fade-in">
+                        <h3><i class="fas fa-calendar-alt"></i> Основные функции</h3>
+                        <ul>
+                            <li>📅 Полное расписание на семестр</li>
+                            <li>🔔 Умные уведомления об изменениях(в процессе)</li>
+                            <li>👥 Поддержка всех групп направления</li>
+                            <li>🔍 Поиск по преподавателям и аудиториям(в процессе)</li>
+                            <li>📱 Адаптивный интерфейс</li>
+                        </ul>
+                    </div>
+                    <div class="content-card fade-in">
+                        <h3><i class="fas fa-magic"></i> Уникальные возможности которые планируется реализовать в будущем</h3>
+                        <ul>
+                            <li>🎯 Персональные рекомендации</li>
+                            <li>📊 Статистика посещаемости</li>
+                            <li>🤖 AI-помощник для вопросов</li>
+                            <li>🔗 Интеграция с Moodle</li>
+                            <li>🌙 Ночной режим</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Creation Tab -->
+            <div id="creation" class="tab-content">
+                <div class="content-grid">
+                    <div class="content-card fade-in">
+                        <h3><i class="fas fa-road"></i> Этапы разработки</h3>
+                        <ol>
+                            <li><strong>Анализ потребностей</strong> - интервью со студентами и преподавателями</li>
+                            <li><strong>Проектирование архитектуры</strong> - выбор технологий и проектирование БД</li>
+                            <li><strong>Разработка MVP</strong> - базовый функционал за 2 недели</li>
+                            <li><strong>Тестирование</strong> - закрытый бета-тест с 25 пользователями</li>
+                            <li><strong>Запуск</strong> - публичный релиз и сбор обратной связи</li>
+                        </ol>
+                    </div>
+                    <div class="content-card fade-in">
+                        <h3><i class="fas fa-tools"></i> Технические детали</h3>
+                        <p><strong>Время разработки:</strong> 6 недель</p>
+                        <p><strong>Команда:</strong> 2 разработчика-дизайнера</p>
+                        <p><strong>Методология:</strong> Agile/Scrum</p>
+                        <p><strong>Тестирование:</strong> 87% coverage</p>
+                        <div class="tech-stack">
+                            <span class="tech-item">Python 3.11</span>
+                            <span class="tech-item">Aiogram 3.x</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Architecture Tab -->
+            <div id="architecture" class="tab-content">
+                <div class="content-grid">
+                    <div class="content-card fade-in">
+                        <h3><i class="fas fa-layer-group"></i> Системная архитектура</h3>
+                        <p><strong>Микросервисная архитектура:</strong></p>
+                        <ul>
+                            <li>API Gateway - единая точка входа</li>
+                            <li>User Service - управление пользователями</li>
+                            <li>Schedule Service - работа с расписанием</li>
+                            <li>Notification Service - система уведомлений</li>
+                            <li>Analytics Service - сбор статистики</li>
+                        </ul>
+                    </div>
+                    <div class="content-card fade-in">
+                        <h3><i class="fas fa-database"></i> База данных</h3>
+                        <p><strong>PostgreSQL схемы:</strong></p>
+                        <ul>
+                            <li>users - данные пользователей</li>
+                            <li>groups - учебные группы</li>
+                            <li>schedule - расписание занятий</li>
+                            <li>notifications - история уведомлений</li>
+                            <li>analytics - метрики использования</li>
+                        </ul>
+                        <p><strong>Производительность:</strong> 1000+ RPS, средняя задержка 15мс</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Future Tab -->
+            <div id="future" class="tab-content">
+                <div class="content-grid">
+                    <div class="content-card fade-in">
+                        <h3><i class="fas fa-calendar-plus"></i> Ближайшие обновления</h3>
+                        <ul>
+                            <li>📱 Нативное мобильное приложение</li>
+                            <li>🤖 Голосовой помощник</li>
+                            <li>👨‍🏫 Система напоминаний о дедлайнах</li>
+                            <li>📈 Продвинутая аналитика успеваемости</li>
+                            <li>🔗 Интеграция с календарями</li>
+                        </ul>
+                    </div>
+                    <div class="content-card fade-in">
+                        <h3><i class="fas fa-expand-arrows-alt"></i> Стратегия развития</h3>
+                        <p><strong>Q3 2024:</strong> Поддержка всех факультетов университета</p>
+                        <p><strong>Q4 2024:</strong> Мобильное приложение + веб-версия</p>
+                        <p><strong>Q1 2025:</strong> AI-рекомендации по обучению</p>
+                        <p><strong>Q2 2025:</strong> Экспорт в другие вузы</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Authors Section -->
+    <section class="authors-section" id="authors">
+        <div class="authors-container">
+            <h2>Наша команда</h2>
+            <div class="authors-grid">
+                <!-- Автор 1 -->
+                <div class="author-card fade-in">
+                    <div class="author-photo">
+                        <img src="https://via.placeholder.com/150x150/6366f1/ffffff?text=ДД" alt="Даниил Дубровин" onerror="this.src='https://via.placeholder.com/150x150/6366f1/ffffff?text=ДД'">
+                    </div>
+                    <div class="author-info">
+                        <h3>Даниил Дубровин</h3>
+                        <p class="author-position">Full-Stack Developer & Team Lead</p>
+                        <p class="author-bio">Студент 1 курса ПИ, ответственный за архитектуру проекта, backend-разработку и интеграцию с Telegram API. Увлекается машинным обучением и веб-разработкой.</p>
+                        <div class="author-contacts">
+                            <div class="contact-item">
+                                <span class="contact-icon">📧</span>
+                                <a href="mailto:dubrovindanila92@gmail.com">dubrovindanila92@gmail.com</a>
+                            </div>
+                            <div class="contact-item">
+                                <span class="contact-icon">📱</span>
+                                <a href="https://t.me/longerxo" target="_blank">@longerxo</a>
+                            </div>
+                            <div class="contact-item">
+                                <span class="contact-icon">💼</span>
+                                <a href="https://github.com/longerxo" target="_blank">GitHub</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Автор 2 -->
+                <div class="author-card fade-in">
+                    <div class="author-photo">
+                        <img src="https://via.placeholder.com/150x150/10b981/ffffff?text=ДС" alt="Дмитрий Смирнов" onerror="this.src='https://via.placeholder.com/150x150/10b981/ffffff?text=ДС'">
+                    </div>
+                    <div class="author-info">
+                        <h3>Дмитрий Смирнов</h3>
+                        <p class="author-position">Backend Developer & DevOps</p>
+                        <p class="author-bio">Студент 1 курса ПИ, специализируется на backend-разработке, оптимизации производительности и развертывании приложений. Интересуется облачными технологиями и автоматизацией.</p>
+                        <div class="author-contacts">
+                            <div class="contact-item">
+                                <span class="contact-icon">📧</span>
+                                <a href="mailto:dmitry.smirnov@example.com">dmitry.smirnov@example.com</a>
+                            </div>
+                            <div class="contact-item">
+                                <span class="contact-icon">📱</span>
+                                <a href="https://t.me/dmitry_smirnov" target="_blank">@dmitry_smirnov</a>
+                            </div>
+                            <div class="contact-item">
+                                <span class="contact-icon">💻</span>
+                                <a href="https://github.com/dmitry-smirnov" target="_blank">GitHub</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="about">
+        <div class="features-grid">
+            <div class="feature-card fade-in">
+                <div class="feature-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <h3>Мгновенная скорость</h3>
+                <p>Среднее время ответа бота - 1.5 секунды. Все операции оптимизированы для максимальной производительности.</p>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3>Надежность 99.9%</h3>
+                <p>Система работает 24/7 с гарантированной uptime 99.9%. Автоматическое масштабирование под нагрузку.</p>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3>Масштабируемость</h3>
+                <p>Поддержка неограниченного количества пользователей. Архитектура позволяет легко добавлять новые функции.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer" id="contact">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>StudyBot Pro</h3>
+                <p>Современное решение для управления учебным расписанием. Быстро, удобно, эффективно.</p>
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-telegram"></i></a>
+                    <a href="#"><i class="fab fa-github"></i></a>
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-linkedin"></i></a>
+                </div>
+            </div>
+            <div class="footer-section">
+                <h3>Быстрые ссылки</h3>
+                <ul class="footer-links">
+                    <li><a href="#home">Главная</a></li>
+                    <li><a href="#features">Функции</a></li>
+                    <li><a href="#about">О проекте</a></li>
+                    <li><a href="#authors">Авторы</a></li>
+                    <li><a href="#tech">Технологии</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Контакты</h3>
+                <ul class="footer-links">
+                    <li><a href="mailto:studybot@university.edu"><i class="fas fa-envelope"></i> hseshedule@university.edu</a></li>
+                    <li><a href="https://t.me/longerxo"><i class="fab fa-telegram"></i> @longerxo </a></li>
+                    <li><a href="#"><i class="fas fa-map-marker-alt"></i> HSE Nizniy Novgorod </a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 KNTschedule Bot. Все права защищены. Разработано с ❤️ для студентов от студентов.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Loading Screen
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                }, 500);
+            }, 1500);
+        });
+
+        // Mobile Menu
+        document.getElementById('mobileMenuBtn').addEventListener('click', function() {
+            document.getElementById('navLinks').classList.toggle('active');
+        });
+
+        // Navbar Scroll Effect
+        window.addEventListener('scroll', function() {
+            if (window.scrollY > 100) {
+                document.getElementById('navbar').classList.add('scrolled');
+            } else {
+                document.getElementById('navbar').classList.remove('scrolled');
+            }
+        });
+
+        // Tab System
+        function openTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab and activate button
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // Scroll Animations
+        function checkScroll() {
+            const elements = document.querySelectorAll('.fade-in');
+            elements.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const windowHeight = window.innerHeight;
+                if (elementTop < windowHeight - 100) {
+                    element.classList.add('visible');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', checkScroll);
+        window.addEventListener('load', checkScroll);
+
+        // Smooth Scroll for Navigation Links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+  </html>
